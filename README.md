@@ -39,4 +39,4 @@ oop-loker/
 ```
 
 ## USE CASE DIAGRAM
-![USE CASE DIAGRAM](assets\useCase.webp)
+![USE CASE DIAGRAM](assets\useCase.png)
