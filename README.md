@@ -39,4 +39,4 @@ oop-loker/
 ```
 
 ## USE CASE DIAGRAM
-![USE CASE DIAGRAM](assets\useCase.png)
+![USE CASE DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/useCase.png)
