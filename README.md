@@ -46,7 +46,7 @@ USE CASE DIAGRAM, 4 Aktor dengan beban tugas yang berbeda
 
 ## CLASS DIAGRAM
 
-![CLASS DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/classDiagram.svg)
+![CLASS DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/ClassDiagram.webp)
 
 Class diagram menggunakan `Pengguna` sebagai abstract superclass dengan inheritance ke `User`, `AdminPerusahaan`, `HRD`, dan `AdminSistem`. `Lamaran` menjadi association class yang menghubungkan `User` dan `Lowongan`. Satu perusahaan dapat memiliki banyak HRD dan banyak lowongan. Setiap lowongan dikelola oleh satu HRD dan dapat menerima banyak lamaran.
 
