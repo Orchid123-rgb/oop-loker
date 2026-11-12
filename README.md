@@ -2,9 +2,10 @@
 
 Untuk Tugas Akhir Pemrograman Berbasis Objek (PBO). Kelompok 5, yang beranggotakan :
 
-[2513030126] Ilham Wahyu Utama 
-
-[2513030127] Aqliza Junior Hikam Ramadhan
+| NPM | Nama |
+|---|---|
+| 2513030126 | Ilham Wahyu Utama |
+| 2513030127 | Aqliza Junior Hikam Ramadhan |
 
 ## Arsitektur Program
 ```tree
@@ -42,3 +43,12 @@ oop-loker/
 ## USE CASE DIAGRAM
 USE CASE DIAGRAM, 4 Aktor dengan beban tugas yang berbeda
 ![USE CASE DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/useCase.png)
+
+## CLASS DIAGRAM
+
+![CLASS DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/classDiagram.svg)
+
+Class diagram menggunakan `Pengguna` sebagai abstract superclass dengan inheritance ke `User`, `AdminPerusahaan`, `HRD`, dan `AdminSistem`. `Lamaran` menjadi association class yang menghubungkan `User` dan `Lowongan`. Satu perusahaan dapat memiliki banyak HRD dan banyak lowongan. Setiap lowongan dikelola oleh satu HRD dan dapat menerima banyak lamaran.
+
+Relasi menggunakan multiplicity untuk menjaga konsistensi kardinalitas sistem. Atribut dibuat private dan operasi public untuk menerapkan encapsulation, sedangkan `getRole()` mendukung polymorphism pada turunan `Pengguna`.
+
