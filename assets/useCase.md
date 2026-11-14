@@ -1,52 +1,61 @@
-# Anu, ngunulah pokok e
-## Setidaknya, ngkongene isine
+# GET A JOB - Use Case Diagram
 
-```
-====================================================================================================
-                                 SYSTEM BOUNDARY: GET A JOB
-====================================================================================================
+## Deskripsi
 
-      +------------------------+
-      |      (1) Register      |
-      +------------------------+
-                 ^
-                 | <<include>>
-      +------------------------+
-      |       (2) Login        |<---------------------+-------------------+-------------------+
-      +------------------------+                      |                   |                   |
-                 ^                                    |                   |                   |
-                 | <<include>>                        |                   |                   |
-      +------------------------+                      |                   |                   |
-      |   (3) Tampil Dashboard |                      |                   |                   |
-      +------------------------+                      |                   |                   |
-                                                      |                   |                   |
-  [ USER / PENCARI KERJA ]                            |                   |                   |
-      |-- (4) Kelola Profil & Unggah CV               |                   |                   |
-      |-- (5) Cari & Filter Lowongan                  |                   |                   |
-      |        \                                      |                   |                   |
-      |         `-- <<extend>>                        |                   |                   |
-      |-- (6) Kirim Lamaran Pekerjaan                 |                   |                   |
-      |-- (7) Pantau Status Lamaran                   |                   |                   |
-      |-- (8) Ajukan Pendaftaran Perusahaan           |                   |                   |
-                                                      |                   |                   |
-  [ ADMIN PERUSAHAAN ] -------------------------------+                   |                   |
-      |-- (9)  Kelola Profil Perusahaan                                   |                   |
-      |-- (10) Buat Akun HRD                                              |                   |
-      |-- (11) Kelola Akun HRD (Nonaktifkan/Edit)                         |                   |
-                                                                          |                   |
-  [ HRD ] ----------------------------------------------------------------+                   |
-      |-- (12) Kelola Lowongan (Buat, Edit, Buka, Tutup)                                      |
-      |-- (13) Review Berkas & CV Pelamar                                                     |
-      |-- (14) Putuskan Status Lamaran (Diterima / Ditolak)                                   |
-                                                                                              |
-  [ ADMIN APLIKASI ] -------------------------------------------------------------------------+
-      |-- (15) Verifikasi Pengajuan Perusahaan (Setujui / Tolak)
-      |-- (16) Kelola Seluruh Pengguna & Perusahaan
-      |-- (17) Pantau Lowongan Global
-====================================================================================================
-```
+Use Case Diagram ini menggambarkan interaksi antara empat jenis aktor dengan sistem GET A JOB. Sistem berfungsi sebagai portal pencarian lowongan kerja yang menghubungkan pencari kerja, perusahaan, HRD, dan administrator aplikasi.
 
-## Plant UML gae draw io su
+## Aktor dan Tanggung Jawab
+
+1. User (Pencari Kerja)
+   - Registrasi dan login.
+   - Melihat dashboard.
+   - Mengelola profil dan mengunggah CV.
+   - Mencari dan memfilter lowongan.
+   - Mengirim lamaran pekerjaan.
+   - Memantau status lamaran.
+   - Mengajukan pendaftaran perusahaan.
+
+2. Admin Perusahaan
+   - Mengelola profil perusahaan.
+   - Membuat akun HRD.
+   - Mengedit dan menonaktifkan akun HRD.
+
+3. HRD
+   - Mengelola lowongan, termasuk membuat, mengedit, membuka, dan menutup lowongan.
+   - Meninjau berkas dan CV pelamar.
+   - Menentukan status lamaran diterima atau ditolak.
+
+4. Admin Aplikasi
+   - Memverifikasi pengajuan perusahaan.
+   - Mengelola seluruh pengguna dan perusahaan.
+   - Memantau lowongan secara global.
+
+## Alur Utama
+
+Semua aktor menggunakan Login sebelum menjalankan fungsi utama sesuai perannya. Setelah login, sistem menampilkan dashboard sesuai jenis akun.
+
+User dapat mengelola profil dan CV, mencari lowongan, mengirim lamaran, memantau status lamaran, serta mengajukan pendaftaran perusahaan.
+
+Admin Perusahaan mengelola data perusahaan dan akun HRD.
+
+HRD mengelola lowongan dan memproses lamaran pelamar.
+
+Admin Aplikasi menangani verifikasi perusahaan, administrasi pengguna dan perusahaan, serta pemantauan lowongan global.
+
+## Relasi Include dan Extend
+
+`Kirim Lamaran Pekerjaan` memiliki relasi `<<include>>` terhadap `Kelola Profil & Unggah CV`. Artinya proses lamaran membutuhkan data profil dan CV yang diperlukan.
+
+`Kirim Lamaran Pekerjaan` memiliki relasi `<<extend>>` terhadap `Cari & Filter Lowongan`. Artinya proses pengiriman lamaran dapat dilanjutkan setelah User menemukan lowongan melalui proses pencarian.
+
+## Batas Sistem
+
+`Job Portal CLI System` merupakan batas sistem. Semua use case di dalam batas tersebut merupakan fungsi aplikasi. Keempat aktor berada di luar batas karena mereka berinteraksi dengan sistem.
+
+## PlantUML
+
+Kode PlantUML berikut dipertahankan sebagai sumber diagram agar diagram dapat diregenerasi atau diedit melalui PlantUML maupun draw.io. 
+
 ```plantUML
 @startuml
 left to right direction
