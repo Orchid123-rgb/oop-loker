@@ -1,263 +1,320 @@
 # GET A JOB - Class Diagram
 
-## Deskripsi
+## Deskripsi & Ruang Lingkup
 
-Class Diagram ini menggambarkan struktur objek utama sistem GET A JOB, meliputi atribut, method, inheritance, enum, polymorphism, encapsulation, dan relasi antarclass.
+**Class Diagram** ini menggambarkan struktur statis lapisan **Domain Model (`models/`)** pada sistem **GET A JOB**, meliputi kelas abstrak, kelas turunan (*inheritance*), enumerasi (*enum*), polimorfisme (*method overriding*), enkapsulasi, serta relasi dan *multiplicity* antar-objek.
 
-Rancangan menggunakan `Pengguna` sebagai abstract superclass. Class tersebut diturunkan menjadi `User`, `AdminPerusahaan`, `HRD`, dan `AdminSistem`.
+Rancangan menggunakan **`Pengguna`** sebagai *abstract superclass* yang diturunkan menjadi empat aktor: **`User`**, **`AdminPerusahaan`**, **`HRD`**, dan **`AdminSistem`**. Sementara itu, entitas domain utamanya terdiri atas **`Perusahaan`**, **`Lowongan`**, **`Lamaran`**, dan **`PengajuanPerusahaan`**.
 
-Class domain utama adalah `Perusahaan`, `Lowongan`, `Lamaran`, dan `PengajuanPerusahaan`.
+> **Batasan Ruang Lingkup Diagram (Anti Over-Engineering):** Lapisan orkestrasi proses bisnis (`services/`), akses database MySQL (`dao/*_dao.py` & `*_dao_impl.py`), serta utilitas teknis (`util/`) dipisahkan dari diagram ini sesuai prinsip *Separation of Concerns*, sehingga diagram berfokus penuh pada objek domain dan aturan bisnis inti.
+
+---
+
+## Standar Presisi Tipe Data (UML – Python – MySQL)
+
+Seluruh tipe data pada diagram menggunakan *type hinting* Python yang presisi dan selaras dengan skema tabel MySQL:
+
+| Tipe pada Diagram | Tipe Python | Padanan Kolom MySQL | Keterangan |
+| :--- | :--- | :--- | :--- |
+| `int` | `int` | `INT AUTO_INCREMENT` | Primary Key & Foreign Key |
+| `str` | `str` | `VARCHAR` / `TEXT` | Identitas teks, email, deskripsi, path CV |
+| `float` | `float` | `DECIMAL(12, 2)` | Nominal gaji (`gaji_min`, `gaji_max`), wajib $\ge 0.0$ |
+| `bool` | `bool` | `TINYINT(1)` / `BOOLEAN` | Status aktif/nonaktif akun |
+| `datetime` | `datetime.datetime` | `DATETIME` | Waktu pembuatan lowongan, lamaran, dan pengajuan |
+| `StatusVerifikasi` | `Enum` | `ENUM(...)` | `DIAJUKAN`, `DISETUJUI`, `DITOLAK` |
+| `StatusLowongan` | `Enum` | `ENUM(...)` | `DRAFT`, `TERBUKA`, `DITUTUP` |
+| `StatusLamaran` | `Enum` | `ENUM(...)` | **3 Status Final:** `MENUNGGU_REVIEW`, `DITERIMA`, `DITOLAK` |
+| `StatusPengajuan` | `Enum` | `ENUM(...)` | `DIAJUKAN`, `DISETUJUI`, `DITOLAK` |
+| `list<T>` | `list[T]` | Relasi One-to-Many | Koleksi objek anak (mis. `list[HRD]`, `list[Lowongan]`) |
+| `Optional<T>` | `Optional[T]` | `NULLABLE FK` | Referensi objek yang dapat bernilai `None` |
+
+---
+
+## Penerapan 4 Pilar OOP & Enkapsulasi Best Practice
+
+### 1. Abstraction & Inheritance
+* **`Pengguna`** didefinisikan sebagai **Abstract Base Class (`ABC`)** menggunakan modul `abc`, sehingga tidak dapat diinstansiasi secara langsung.
+* Keempat kelas aktor (**`User`**, **`AdminPerusahaan`**, **`HRD`**, **`AdminSistem`**) mewarisi atribut dan perilaku dasar dari `Pengguna` menggunakan `super().__init__(...)`.
+
+### 2. Polymorphism
+* `Pengguna` mendeklarasikan dua *abstract method* (`@abstractmethod`): `get_role() : str` dan `tampilkan_dashboard() : None`.
+* Masing-masing subclass melakukan *method overriding* dengan *signature* yang identik tetapi menghasilkan peran dan tampilan menu dashboard yang berbeda. Pendekatan ini digunakan karena Python tidak memiliki *method overloading* statis seperti Java atau C++.
+
+### 3. Encapsulation (Konvensi Python & `@property`)
+* **Protected (`#` $\rightarrow$ `_atribut`):** Diterapkan pada atribut `Pengguna` (`_id_pengguna`, `_nama`, `_email`, `_status_aktif`) agar dapat diakses secara sah oleh subclass turunannya.
+* **Private (`-` $\rightarrow$ `__atribut`):** Diterapkan pada data kredensial (`__password_hash`) dan seluruh atribut entitas domain untuk mencegah perubahan langsung dari luar kelas (*name mangling*).
+* **Getter & Setter Tervalidasi (`@property` & `@setter`):**
+  * **`Pengguna`:** Setter `email` memvalidasi format email wajib mengandung `@`; `__password_hash` tidak memiliki setter publik dan hanya dapat diubah melalui `ubah_password()`.
+  * **`User`:** Setter `cv_path` memastikan path berkas CV tidak kosong dan berformat valid sebelum `kirim_lamaran()` dieksekusi.
+  * **`Lowongan`:** Setter `gaji_min` dan `gaji_max` memvalidasi bahwa gaji tidak bernilai negatif dan `gaji_max >= gaji_min`.
+  * **`Lamaran`:** Atribut `__status` bersifat *read-only* dari luar (hanya getter) dan hanya berubah melalui `ubah_status()` yang mengunci transisi dari `MENUNGGU_REVIEW` ke `DITERIMA` atau `DITOLAK` (status akhir tidak dapat diubah kembali).
+
+---
 
 ## Struktur Class
 
-### Pengguna
+### 1. Enum
 
-`Pengguna` merupakan abstract class untuk atribut dan perilaku dasar seluruh akun.
+Enum digunakan untuk membatasi nilai status agar konsisten di seluruh lapisan aplikasi:
+* **`StatusVerifikasi`:** `DIAJUKAN`, `DISETUJUI`, `DITOLAK`
+* **`StatusLowongan`:** `DRAFT`, `TERBUKA`, `DITUTUP`
+* **`StatusLamaran`:** `MENUNGGU_REVIEW`, `DITERIMA`, `DITOLAK` *(mengikuti aturan final 3 status)*
+* **`StatusPengajuan`:** `DIAJUKAN`, `DISETUJUI`, `DITOLAK`
 
-Atribut:
-- `idPengguna`
-- `nama`
-- `email`
-- `passwordHash`
-- `statusAktif`
+### 2. Pengguna (Abstract Superclass)
 
-Method:
-- `ubahProfil()`
-- `aktifkanAkun()`
-- `nonaktifkanAkun()`
-- `getRole()`
+`Pengguna` merupakan *abstract class* yang menyimpan atribut dan perilaku dasar seluruh akun pengguna.
 
-`getRole()` menjadi titik polymorphism. Subclass melakukan overriding dengan signature yang sama dan implementasi role yang berbeda.
+* **Atribut:**
+  * `# _id_pengguna : int`
+  * `# _nama : str`
+  * `# _email : str`
+  * `- __password_hash : str`
+  * `# _status_aktif : bool`
+* **Method:**
+  * `+ <<property>> id_pengguna() : int`
+  * `+ <<property>> nama() : str`
+  * `+ <<setter>> nama(nilai : str) : None`
+  * `+ <<property>> email() : str`
+  * `+ <<setter>> email(nilai : str) : None`
+  * `+ <<property>> status_aktif() : bool`
+  * `+ ubah_profil(nama : str, email : str) : None`
+  * `+ ubah_password(password_lama : str, password_baru : str) : bool`
+  * `+ verifikasi_password(password : str) : bool`
+  * `+ aktifkan_akun() : None`
+  * `+ nonaktifkan_akun() : None`
+  * `+ {abstract} get_role() : str`
+  * `+ {abstract} tampilkan_dashboard() : None`
 
-### User
+### 3. User
 
 `User` merupakan subclass `Pengguna` untuk pencari kerja.
 
-Atribut:
-- `nomorTelepon`
-- `alamat`
-- `cv`
+* **Atribut:**
+  * `- __nomor_telepon : str`
+  * `- __alamat : str`
+  * `- __cv_path : str`
+* **Method:**
+  * `+ <<property>> nomor_telepon() : str`
+  * `+ <<setter>> nomor_telepon(nilai : str) : None`
+  * `+ <<property>> alamat() : str`
+  * `+ <<setter>> alamat(nilai : str) : None`
+  * `+ <<property>> cv_path() : str`
+  * `+ <<setter>> cv_path(nilai : str) : None`
+  * `+ unggah_cv(path : str) : None`
+  * `+ cari_lowongan(kriteria : str) : list<Lowongan>`
+  * `+ kirim_lamaran(lowongan : Lowongan) : Lamaran`
+  * `+ pantau_lamaran() : list<Lamaran>`
+  * `+ ajukan_perusahaan(nama : str, alamat : str, email : str, deskripsi : str) : PengajuanPerusahaan`
+  * `+ get_role() : str` *(override)*
+  * `+ tampilkan_dashboard() : None` *(override)*
 
-Method:
-- `unggahCV()` untuk mengunggah CV.
-- `cariLowongan()` untuk mencari lowongan.
-- `kirimLamaran()` untuk mengirim lamaran.
-- `pantauLamaran()` untuk memantau lamaran.
-- `ajukanPerusahaan()` untuk membuat pengajuan perusahaan.
-- `getRole()` sebagai override.
+### 4. AdminPerusahaan
 
-### AdminPerusahaan
+`AdminPerusahaan` merupakan subclass `Pengguna` yang mengelola profil perusahaan serta akun HRD di perusahaannya (tidak berwenang menyeleksi pelamar).
 
-`AdminPerusahaan` merupakan subclass `Pengguna` yang mengelola perusahaan dan akun HRD.
+* **Atribut:**
+  * `- __perusahaan : Perusahaan`
+* **Method:**
+  * `+ <<property>> perusahaan() : Perusahaan`
+  * `+ kelola_profil_perusahaan(nama : str, alamat : str, deskripsi : str, email : str) : None`
+  * `+ buat_akun_hrd(nama : str, email : str, password : str, jabatan : str) : HRD`
+  * `+ ubah_akun_hrd(hrd : HRD, jabatan : str) : None`
+  * `+ nonaktifkan_hrd(hrd : HRD) : None`
+  * `+ get_role() : str` *(override)*
+  * `+ tampilkan_dashboard() : None` *(override)*
 
-Method:
-- `kelolaProfilPerusahaan()`
-- `buatAkunHRD()`
-- `ubahAkunHRD()`
-- `nonaktifkanHRD()`
-- `getRole()` sebagai override.
+### 5. HRD
 
-### HRD
+`HRD` merupakan subclass `Pengguna` yang menangani publikasi lowongan kerja dan proses seleksi pelamar pada perusahaan tempatnya bekerja.
 
-`HRD` merupakan subclass `Pengguna` yang menangani proses rekrutmen.
+* **Atribut:**
+  * `- __perusahaan : Perusahaan`
+  * `- __jabatan : str`
+* **Method:**
+  * `+ <<property>> perusahaan() : Perusahaan`
+  * `+ <<property>> jabatan() : str`
+  * `+ <<setter>> jabatan(nilai : str) : None`
+  * `+ buat_lowongan(posisi : str, deskripsi : str, persyaratan : str, lokasi : str, gaji_min : float, gaji_max : float) : Lowongan`
+  * `+ ubah_lowongan(lowongan : Lowongan, posisi : str, deskripsi : str, persyaratan : str, lokasi : str, gaji_min : float, gaji_max : float) : None`
+  * `+ buka_lowongan(lowongan : Lowongan) : None`
+  * `+ tutup_lowongan(lowongan : Lowongan) : None`
+  * `+ review_lamaran(lamaran : Lamaran) : dict`
+  * `+ putuskan_status(lamaran : Lamaran, status : StatusLamaran, catatan : str) : None`
+  * `+ get_role() : str` *(override)*
+  * `+ tampilkan_dashboard() : None` *(override)*
 
-Atribut:
-- `perusahaan`
-- `jabatan`
+### 6. AdminSistem
 
-Method:
-- `buatLowongan()`
-- `ubahLowongan()`
-- `bukaLowongan()`
-- `tutupLowongan()`
-- `reviewLamaran()`
-- `putuskanStatus()`
-- `getRole()` sebagai override.
+`AdminSistem` merupakan subclass `Pengguna` yang menangani administrasi tingkat aplikasi dan verifikasi pengajuan perusahaan baru.
 
-### AdminSistem
+* **Atribut:** *(Menggunakan atribut warisan dari `Pengguna`)*
+* **Method:**
+  * `+ verifikasi_pengajuan(pengajuan : PengajuanPerusahaan, disetujui : bool, alasan : str) : Optional<Perusahaan>`
+  * `+ kelola_pengguna(pengguna : Pengguna, status_aktif : bool) : None`
+  * `+ kelola_perusahaan(perusahaan : Perusahaan, status : StatusVerifikasi) : None`
+  * `+ pantau_lowongan_global() : list<Lowongan>`
+  * `+ get_role() : str` *(override)*
+  * `+ tampilkan_dashboard() : None` *(override)*
 
-`AdminSistem` merupakan subclass `Pengguna` yang menangani administrasi tingkat aplikasi.
+### 7. Perusahaan
 
-Method:
-- `verifikasiPengajuan()`
-- `kelolaPengguna()`
-- `kelolaPerusahaan()`
-- `pantauLowonganGlobal()`
-- `getRole()` sebagai override.
+`Perusahaan` menyimpan data identitas badan usaha yang telah terdaftar serta koleksi HRD dan lowongan yang dimilikinya.
 
-### Perusahaan
+* **Atribut:**
+  * `- __id_perusahaan : int`
+  * `- __nama : str`
+  * `- __alamat : str`
+  * `- __deskripsi : str`
+  * `- __email : str`
+  * `- __status_verifikasi : StatusVerifikasi`
+  * `- __daftar_hrd : list<HRD>`
+  * `- __daftar_lowongan : list<Lowongan>`
+* **Method:**
+  * `+ <<property>> id_perusahaan() : int`
+  * `+ <<property>> nama() : str`
+  * `+ <<setter>> nama(nilai : str) : None`
+  * `+ <<property>> alamat() : str`
+  * `+ <<setter>> alamat(nilai : str) : None`
+  * `+ <<property>> deskripsi() : str`
+  * `+ <<setter>> deskripsi(nilai : str) : None`
+  * `+ <<property>> email() : str`
+  * `+ <<setter>> email(nilai : str) : None`
+  * `+ <<property>> status_verifikasi() : StatusVerifikasi`
+  * `+ <<setter>> status_verifikasi(nilai : StatusVerifikasi) : None`
+  * `+ <<property>> daftar_hrd() : list<HRD>`
+  * `+ <<property>> daftar_lowongan() : list<Lowongan>`
+  * `+ ubah_profil(nama : str, alamat : str, deskripsi : str, email : str) : None`
+  * `+ tambah_hrd(hrd : HRD) : None`
+  * `+ tambah_lowongan(lowongan : Lowongan) : None`
 
-`Perusahaan` menyimpan data perusahaan.
+### 8. Lowongan
 
-Atribut:
-- `idPerusahaan`
-- `nama`
-- `alamat`
-- `deskripsi`
-- `email`
-- `statusVerifikasi`
+`Lowongan` merepresentasikan posisi pekerjaan yang dipublikasikan oleh HRD suatu perusahaan.
 
-Method:
-- `ubahProfil()`
-- `tambahHRD()`
-- `tambahLowongan()`
-- `getStatusVerifikasi()`
+* **Atribut:**
+  * `- __id_lowongan : int`
+  * `- __perusahaan : Perusahaan`
+  * `- __dibuat_oleh : HRD`
+  * `- __posisi : str`
+  * `- __deskripsi : str`
+  * `- __persyaratan : str`
+  * `- __lokasi : str`
+  * `- __gaji_min : float`
+  * `- __gaji_max : float`
+  * `- __status : StatusLowongan`
+  * `- __tanggal_dibuat : datetime`
+  * `- __tanggal_tutup : Optional<datetime>`
+* **Method:**
+  * `+ <<property>> id_lowongan() : int`
+  * `+ <<property>> perusahaan() : Perusahaan`
+  * `+ <<property>> dibuat_oleh() : HRD`
+  * `+ <<property>> posisi() : str`
+  * `+ <<setter>> posisi(nilai : str) : None`
+  * `+ <<property>> deskripsi() : str`
+  * `+ <<setter>> deskripsi(nilai : str) : None`
+  * `+ <<property>> persyaratan() : str`
+  * `+ <<setter>> persyaratan(nilai : str) : None`
+  * `+ <<property>> lokasi() : str`
+  * `+ <<setter>> lokasi(nilai : str) : None`
+  * `+ <<property>> gaji_min() : float`
+  * `+ <<setter>> gaji_min(nilai : float) : None`
+  * `+ <<property>> gaji_max() : float`
+  * `+ <<setter>> gaji_max(nilai : float) : None`
+  * `+ <<property>> status() : StatusLowongan`
+  * `+ <<property>> tanggal_dibuat() : datetime`
+  * `+ <<property>> tanggal_tutup() : Optional<datetime>`
+  * `+ ubah_detail(posisi : str, deskripsi : str, persyaratan : str, lokasi : str, gaji_min : float, gaji_max : float) : None`
+  * `+ buka() : None`
+  * `+ tutup() : None`
+  * `+ sesuai_kriteria(kriteria : str) : bool`
 
-Satu perusahaan dapat memiliki banyak HRD dan banyak lowongan.
+### 9. Lamaran
 
-### Lowongan
+`Lamaran` berfungsi sebagai *association class* yang menyimpan transaksi pengajuan lamaran antara `User` dan `Lowongan` beserta status seleksinya.
 
-`Lowongan` merepresentasikan posisi pekerjaan yang dipublikasikan perusahaan.
+* **Atribut:**
+  * `- __id_lamaran : int`
+  * `- __pelamar : User`
+  * `- __lowongan : Lowongan`
+  * `- __tanggal_lamaran : datetime`
+  * `- __status : StatusLamaran`
+  * `- __catatan_hrd : str`
+* **Method:**
+  * `+ <<property>> id_lamaran() : int`
+  * `+ <<property>> pelamar() : User`
+  * `+ <<property>> lowongan() : Lowongan`
+  * `+ <<property>> tanggal_lamaran() : datetime`
+  * `+ <<property>> status() : StatusLamaran`
+  * `+ <<property>> catatan_hrd() : str`
+  * `+ ubah_status(status : StatusLamaran, catatan : str) : None`
+  * `+ tambah_catatan(catatan : str) : None`
 
-Atribut:
-- `idLowongan`
-- `posisi`
-- `deskripsi`
-- `persyaratan`
-- `lokasi`
-- `gajiMin`
-- `gajiMax`
-- `status`
-- `tanggalDibuat`
-- `tanggalTutup`
+### 10. PengajuanPerusahaan
 
-Method:
-- `ubahDetail()`
-- `buka()`
-- `tutup()`
-- `sesuaiKriteria()`
+`PengajuanPerusahaan` menyimpan berkas permohonan pendaftaran perusahaan baru oleh `User` hingga diverifikasi oleh `AdminSistem`.
 
-### Lamaran
+* **Atribut:**
+  * `- __id_pengajuan : int`
+  * `- __pemohon : User`
+  * `- __nama_perusahaan : str`
+  * `- __alamat_perusahaan : str`
+  * `- __email_perusahaan : str`
+  * `- __deskripsi_perusahaan : str`
+  * `- __tanggal_pengajuan : datetime`
+  * `- __status : StatusPengajuan`
+  * `- __alasan_penolakan : str`
+  * `- __diverifikasi_oleh : Optional<AdminSistem>`
+* **Method:**
+  * `+ <<property>> id_pengajuan() : int`
+  * `+ <<property>> pemohon() : User`
+  * `+ <<property>> nama_perusahaan() : str`
+  * `+ <<property>> tanggal_pengajuan() : datetime`
+  * `+ <<property>> status() : StatusPengajuan`
+  * `+ <<property>> alasan_penolakan() : str`
+  * `+ <<property>> diverifikasi_oleh() : Optional<AdminSistem>`
+  * `+ setujui(admin : AdminSistem) : Perusahaan`
+  * `+ tolak(admin : AdminSistem, alasan : str) : None`
 
-`Lamaran` menyimpan transaksi ketika User melamar suatu lowongan.
+---
 
-Atribut:
-- `idLamaran`
-- `tanggalLamaran`
-- `status`
-- `catatanHRD`
+## Relasi Antarclass & Multiplicity
 
-Method:
-- `ajukan()`
-- `ubahStatus()`
-- `tambahCatatan()`
-- `getStatus()`
+1. **`Pengguna <|-- User`, `AdminPerusahaan`, `HRD`, `AdminSistem` (*Generalization*):** Keempat aktor mewarisi atribut dan kontrak perilaku dari kelas induk abstrak `Pengguna`.
+2. **`Perusahaan "1" -- "1" AdminPerusahaan` (*Association*):** Satu perusahaan dikelola oleh satu akun Admin Perusahaan.
+3. **`Perusahaan "1" *-- "1..*" HRD` (*Composition*):** Satu perusahaan memiliki minimal satu hingga banyak HRD; objek HRD terikat pada perusahaannya.
+4. **`Perusahaan "1" *-- "0..*" Lowongan` (*Composition*):** Satu perusahaan dapat menyediakan nol hingga banyak lowongan pekerjaan.
+5. **`HRD "1" -- "0..*" Lowongan` (*Association*):** Satu HRD dapat membuat dan mengelola banyak lowongan di perusahaannya.
+6. **`User "1" -- "0..*" Lamaran` (*Association*):** Satu User dapat mengirimkan banyak lamaran ke lowongan yang berbeda.
+7. **`Lowongan "1" -- "0..*" Lamaran` (*Association*):** Satu lowongan terbuka dapat menerima banyak lamaran dari berbagai pelamar.
+8. **`User "1" -- "0..*" PengajuanPerusahaan` (*Association*):** Satu User dapat membuat permohonan pendaftaran perusahaan.
+9. **`AdminSistem "1" -- "0..*" PengajuanPerusahaan` (*Association*):** Admin Sistem memverifikasi pengajuan pendaftaran perusahaan yang masuk.
+10. **`PengajuanPerusahaan "0..1" --> "1" Perusahaan` (*Directed Association*):** Pengajuan yang disetujui oleh Admin Sistem menghasilkan satu entitas `Perusahaan` baru.
 
-`Lamaran` menjadi class tersendiri karena hubungan antara `User` dan `Lowongan` mempunyai data dan perilaku sendiri.
-
-### PengajuanPerusahaan
-
-`PengajuanPerusahaan` menyimpan proses pengajuan pendaftaran perusahaan.
-
-Atribut:
-- `idPengajuan`
-- `tanggalPengajuan`
-- `status`
-- `alasanPenolakan`
-
-Method:
-- `ajukan()`
-- `setujui()`
-- `tolak()`
-- `getStatus()`
-
-## Enum
-
-Enum digunakan untuk membatasi nilai status:
-
-- `StatusVerifikasi`: `DIAJUKAN`, `DISETUJUI`, `DITOLAK`
-- `StatusLowongan`: `DRAFT`, `TERBUKA`, `DITUTUP`
-- `StatusLamaran`: `DIAJUKAN`, `DIREVIEW`, `DITERIMA`, `DITOLAK`
-- `StatusPengajuan`: `DIAJUKAN`, `DISETUJUI`, `DITOLAK`
-
-## Inheritance
-
-Relasi inheritance:
-
-- `Pengguna <|-- User`
-- `Pengguna <|-- AdminPerusahaan`
-- `Pengguna <|-- HRD`
-- `Pengguna <|-- AdminSistem`
-
-Keempat subclass mewarisi atribut dan method dasar dari `Pengguna`.
-
-## Polymorphism
-
-Polymorphism menggunakan method overriding.
-
-`getRole()` didefinisikan pada `Pengguna`, kemudian diimplementasikan kembali oleh setiap subclass. Signature tetap sama, sedangkan hasil role menyesuaikan jenis akun.
-
-Rancangan ini tidak menggunakan method overloading sebagai mekanisme polymorphism utama karena Python tidak menyediakan method overloading native seperti Java atau C++.
-
-## Encapsulation
-
-Atribut menggunakan visibility private yang ditandai `-`. Method yang dapat digunakan dari luar class ditandai `+`.
-
-Contoh:
-
-```text
-- email : String
-- passwordHash : String
-- statusAktif : boolean
-
-+ ubahProfil() : void
-+ aktifkanAkun() : void
-+ nonaktifkanAkun() : void
-```
-
-Dengan rancangan ini, data internal objek dikelola melalui perilaku yang disediakan class.
-
-## Relasi Antarclass
-
-1. `Perusahaan "1" -- "1" AdminPerusahaan`
-   Satu perusahaan dikelola oleh satu Admin Perusahaan sesuai rancangan saat ini.
-
-2. `Perusahaan "1" -- "0..*" HRD`
-   Satu perusahaan dapat memiliki banyak HRD.
-
-3. `Perusahaan "1" -- "0..*" Lowongan`
-   Satu perusahaan dapat menyediakan banyak lowongan.
-
-4. `HRD "1" -- "0..*" Lowongan`
-   Satu HRD dapat mengelola banyak lowongan.
-
-5. `User "1" -- "0..*" Lamaran`
-   Satu User dapat memiliki banyak lamaran.
-
-6. `Lowongan "1" -- "0..*" Lamaran`
-   Satu lowongan dapat menerima banyak lamaran.
-
-7. `User "1" -- "0..*" PengajuanPerusahaan`
-   Satu User dapat membuat banyak pengajuan perusahaan.
-
-8. `AdminSistem "1" -- "0..*" PengajuanPerusahaan`
-   Admin Sistem dapat memverifikasi banyak pengajuan.
-
-9. `PengajuanPerusahaan "0..1" -- "1" Perusahaan`
-   Sebuah pengajuan dapat menghasilkan satu perusahaan setelah proses pengajuan berhasil.
-
-## Konsistensi dengan Implementasi
-
-Class Diagram ini menjadi acuan ketika proses coding dilakukan. Nama class, atribut, method, parameter, return type, inheritance, enum, dan relasi sebaiknya mengikuti diagram agar desain dan implementasi tetap konsisten.
-
-DAO dan utilitas teknis seperti koneksi database, session, dan validator tidak dimasukkan karena diagram ini berfokus pada domain object dan tanggung jawab utama sistem GET A JOB.
+---
 
 ## PlantUML
 
-Kode PlantUML berikut dipertahankan sebagai sumber diagram agar diagram dapat diregenerasi atau diedit melalui PlantUML maupun draw.io.
+Salin kode PlantUML berikut ke **draw.io** melalui menu **Arrange > Insert > Advanced > PlantUML**:
 
-```PlantUML
+```plantuml
 @startuml
 skinparam classAttributeIconSize 0
-skinparam monochrome true
+skinparam linetype ortho
 skinparam shadowing false
+skinparam monochrome false
+skinparam class {
+    BackgroundColor #F8FAFC
+    BorderColor #334155
+    HeaderBackgroundColor #E2E8F0
+    ArrowColor #475569
+}
 
 title GET A JOB - Class Diagram
 
 ' =========================
 ' ENUMS
 ' =========================
-
 enum StatusVerifikasi {
     DIAJUKAN
     DISETUJUI
@@ -271,8 +328,7 @@ enum StatusLowongan {
 }
 
 enum StatusLamaran {
-    DIAJUKAN
-    DIREVIEW
+    MENUNGGU_REVIEW
     DITERIMA
     DITOLAK
 }
@@ -286,166 +342,136 @@ enum StatusPengajuan {
 ' =========================
 ' ABSTRACT SUPERCLASS
 ' =========================
-
 abstract class Pengguna {
-    - idPengguna : int
-    - nama : String
-    - email : String
-    - passwordHash : String
-    - statusAktif : boolean
-
-    + ubahProfil() : void
-    + aktifkanAkun() : void
-    + nonaktifkanAkun() : void
-    + getRole() : String
+    # _id_pengguna : int
+    # _nama : str
+    # _email : str
+    - __password_hash : str
+    # _status_aktif : bool
+    --
+    + <<property>> id_pengguna() : int
+    + <<property>> nama() : str
+    + <<setter>> nama(nilai : str) : None
+    + <<property>> email() : str
+    + <<setter>> email(nilai : str) : None
+    + <<property>> status_aktif() : bool
+    + ubah_profil(nama : str, email : str) : None
+    + ubah_password(password_lama : str, password_baru : str) : bool
+    + verifikasi_password(password : str) : bool
+    + aktifkan_akun() : None
+    + nonaktifkan_akun() : None
+    + {abstract} get_role() : str
+    + {abstract} tampilkan_dashboard() : None
 }
 
 ' =========================
 ' USER ROLES
 ' =========================
-
 class User {
-    - nomorTelepon : String
-    - alamat : String
-    - cv : String
-
-    + unggahCV(path : String) : void
-    + cariLowongan(kriteria : String) : List<Lowongan>
-    + kirimLamaran(idLowongan : int) : Lamaran
-    + pantauLamaran() : List<Lamaran>
-    + ajukanPerusahaan() : PengajuanPerusahaan
-    + getRole() : String
+    - __nomor_telepon : str
+    - __alamat : str
+    - __cv_path : str
+    --
+    + <<property>> nomor_telepon() : str
+    + <<setter>> nomor_telepon(nilai : str) : None
+    + <<property>> alamat() : str
+    + <<setter>> alamat(nilai : str) : None
+    + <<property>> cv_path() : str
+    + <<setter>> cv_path(nilai : str) : None
+    + unggah_cv(path : str) : None
+    + cari_lowongan(kriteria : str) : list<Lowongan>
+    + kirim_lamaran(lowongan : Lowongan) : Lamaran
+    + pantau_lamaran() : list<Lamaran>
+    + ajukan_perusahaan(nama : str, alamat : str, email : str, deskripsi : str) : PengajuanPerusahaan
+    + get_role() : str
+    + tampilkan_dashboard() : None
 }
 
 class AdminPerusahaan {
-    - perusahaan : Perusahaan
-
-    + kelolaProfilPerusahaan() : void
-    + buatAkunHRD(data : HRD) : HRD
-    + ubahAkunHRD(idHRD : int) : void
-    + nonaktifkanHRD(idHRD : int) : void
-    + getRole() : String
+    - __perusahaan : Perusahaan
+    --
+    + <<property>> perusahaan() : Perusahaan
+    + kelola_profil_perusahaan(nama : str, alamat : str, deskripsi : str, email : str) : None
+    + buat_akun_hrd(nama : str, email : str, password : str, jabatan : str) : HRD
+    + ubah_akun_hrd(hrd : HRD, jabatan : str) : None
+    + nonaktifkan_hrd(hrd : HRD) : None
+    + get_role() : str
+    + tampilkan_dashboard() : None
 }
 
 class HRD {
-    - perusahaan : Perusahaan
-    - jabatan : String
-
-    + buatLowongan(data : Lowongan) : Lowongan
-    + ubahLowongan(idLowongan : int) : void
-    + bukaLowongan(idLowongan : int) : void
-    + tutupLowongan(idLowongan : int) : void
-    + reviewLamaran(idLamaran : int) : void
-    + putuskanStatus(idLamaran : int, status : StatusLamaran) : void
-    + getRole() : String
+    - __perusahaan : Perusahaan
+    - __jabatan : str
+    --
+    + <<property>> perusahaan() : Perusahaan
+    + <<property>> jabatan() : str
+    + <<setter>> jabatan(nilai : str) : None
+    + buat_lowongan(posisi : str, deskripsi : str, persyaratan : str, lokasi : str, gaji_min : float, gaji_max : float) : Lowongan
+    + ubah_lowongan(lowongan : Lowongan, posisi : str, deskripsi : str, persyaratan : str, lokasi : str, gaji_min : float, gaji_max : float) : None
+    + buka_lowongan(lowongan : Lowongan) : None
+    + tutup_lowongan(lowongan : Lowongan) : None
+    + review_lamaran(lamaran : Lamaran) : dict
+    + putuskan_status(lamaran : Lamaran, status : StatusLamaran, catatan : str) : None
+    + get_role() : str
+    + tampilkan_dashboard() : None
 }
 
 class AdminSistem {
-
-    + verifikasiPengajuan(idPengajuan : int, status : StatusPengajuan) : void
-    + kelolaPengguna(idPengguna : int) : void
-    + kelolaPerusahaan(idPerusahaan : int) : void
-    + pantauLowonganGlobal() : List<Lowongan>
-    + getRole() : String
+    + verifikasi_pengajuan(pengajuan : PengajuanPerusahaan, disetujui : bool, alasan : str) : Optional<Perusahaan>
+    + kelola_pengguna(pengguna : Pengguna, status_aktif : bool) : None
+    + kelola_perusahaan(perusahaan : Perusahaan, status : StatusVerifikasi) : None
+    + pantau_lowongan_global() : list<Lowongan>
+    + get_role() : str
+    + tampilkan_dashboard() : None
 }
 
 ' =========================
 ' DOMAIN ENTITIES
 ' =========================
-
 class Perusahaan {
-    - idPerusahaan : int
-    - nama : String
-    - alamat : String
-    - deskripsi : String
-    - email : String
-    - statusVerifikasi : StatusVerifikasi
-
-    + ubahProfil() : void
-    + tambahHRD(hrd : HRD) : void
-    + tambahLowongan(lowongan : Lowongan) : void
-    + getStatusVerifikasi() : StatusVerifikasi
+    - __id_perusahaan : int
+    - __nama : str
+    - __alamat : str
+    - __deskripsi : str
+    - __email : str
+    - __status_verifikasi : StatusVerifikasi
+    - __daftar_hrd : list<HRD>
+    - __daftar_lowongan : list<Lowongan>
+    --
+    + <<property>> id_perusahaan() : int
+    + <<property>> nama() : str
+    + <<setter>> nama(nilai : str) : None
+    + <<property>> alamat() : str
+    + <<setter>> alamat(nilai : str) : None
+    + <<property>> deskripsi() : str
+    + <<setter>> deskripsi(nilai : str) : None
+    + <<property>> email() : str
+    + <<setter>> email(nilai : str) : None
+    + <<property>> status_verifikasi() : StatusVerifikasi
+    + <<setter>> status_verifikasi(nilai : StatusVerifikasi) : None
+    + <<property>> daftar_hrd() : list<HRD>
+    + <<property>> daftar_lowongan() : list<Lowongan>
+    + ubah_profil(nama : str, alamat : str, deskripsi : str, email : str) : None
+    + tambah_hrd(hrd : HRD) : None
+    + tambah_lowongan(lowongan : Lowongan) : None
 }
 
 class Lowongan {
-    - idLowongan : int
-    - posisi : String
-    - deskripsi : String
-    - persyaratan : String
-    - lokasi : String
-    - gajiMin : Decimal
-    - gajiMax : Decimal
-    - status : StatusLowongan
-    - tanggalDibuat : DateTime
-    - tanggalTutup : DateTime
-
-    + ubahDetail() : void
-    + buka() : void
-    + tutup() : void
-    + sesuaiKriteria(kriteria : String) : boolean
-}
-
-class Lamaran {
-    - idLamaran : int
-    - tanggalLamaran : DateTime
-    - status : StatusLamaran
-    - catatanHRD : String
-
-    + ajukan() : void
-    + ubahStatus(status : StatusLamaran) : void
-    + tambahCatatan(catatan : String) : void
-    + getStatus() : StatusLamaran
-}
-
-class PengajuanPerusahaan {
-    - idPengajuan : int
-    - tanggalPengajuan : DateTime
-    - status : StatusPengajuan
-    - alasanPenolakan : String
-
-    + ajukan() : void
-    + setujui() : void
-    + tolak(alasan : String) : void
-    + getStatus() : StatusPengajuan
-}
-
-' =========================
-' INHERITANCE
-' =========================
-
-Pengguna <|-- User
-Pengguna <|-- AdminPerusahaan
-Pengguna <|-- HRD
-Pengguna <|-- AdminSistem
-
-' =========================
-' COMPANY RELATIONSHIPS
-' =========================
-
-Perusahaan "1" -- "1" AdminPerusahaan : dikelola oleh
-Perusahaan "1" -- "0..*" HRD : memiliki
-Perusahaan "1" -- "0..*" Lowongan : menyediakan
-
-' =========================
-' HRD RELATIONSHIP
-' =========================
-
-HRD "1" -- "0..*" Lowongan : mengelola
-
-' =========================
-' APPLICATION RELATIONSHIPS
-' =========================
-
-User "1" -- "0..*" Lamaran : mengajukan
-Lowongan "1" -- "0..*" Lamaran : menerima
-
-' =========================
-' COMPANY REGISTRATION
-' =========================
-
-User "1" -- "0..*" PengajuanPerusahaan : mengajukan
-AdminSistem "1" -- "0..*" PengajuanPerusahaan : memverifikasi
-PengajuanPerusahaan "0..1" -- "1" Perusahaan : menghasilkan
-
-@enduml
-```
+    - __id_lowongan : int
+    - __perusahaan : Perusahaan
+    - __dibuat_oleh : HRD
+    - __posisi : str
+    - __deskripsi : str
+    - __persyaratan : str
+    - __lokasi : str
+    - __gaji_min : float
+    - __gaji_max : float
+    - __status : StatusLowongan
+    - __tanggal_dibuat : datetime
+    - __tanggal_tutup : Optional<datetime>
+    --
+    + <<property>> id_lowongan() : int
+    + <<property>> perusahaan() : Perusahaan
+    + <<property>> dibuat_oleh() : HRD
+    + <<property>> posisi() : str
+    + <<setter>> posisi(nilai : str) : N
