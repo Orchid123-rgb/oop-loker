@@ -72,4 +72,6 @@ Untuk melihat detail spesifikasi aktor, batas sistem, dan kode sumber PlantUML, 
 
 CLASS DIAGRAM, pemodelan struktur kelas, enkapsulasi atribut, serta relasi antar-entitas sistem.
 
+![CLASS DIAGRAM](https://raw.githubusercontent.com/Orchid23-rgb/oop-loker/refs/heads/main/assets/classDiagram.webp)
+
 Untuk melihat rincian atribut, visibilitas, aturan validasi enkapsulasi, serta kode sumber PlantUML, silakan buka [Dokumentasi Class Diagram](assets/classDiagram.md).
