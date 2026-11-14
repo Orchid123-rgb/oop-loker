@@ -64,7 +64,7 @@ oop-loker/
 
 USE CASE DIAGRAM, 4 Aktor dengan beban tugas yang berbeda
 
-![USE CASE DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/useCase.png)
+![USE CASE DIAGRAM](https://raw.githubusercontent.com/Orchid123-rgb/oop-loker/refs/heads/main/assets/useCase.webp)
 
 Untuk melihat detail spesifikasi aktor, batas sistem, dan kode sumber PlantUML, silakan buka [Dokumentasi Use Case Diagram](assets/useCase.md).
 
